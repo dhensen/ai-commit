@@ -1,0 +1,75 @@
+#!/home/dino/work/gpt-website/.venv/bin/python3
+import subprocess
+import os
+import sys
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv(
+    "/home/dino/work/gpt-website/.env"
+)  # Load environment variables from .env file
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+def create_temp_commit_msg_file(commit_msg, file_path="/tmp/commitmsg.txt"):
+    with open(file_path, "w") as file:
+        file.write(commit_msg)
+    return file_path
+
+
+def commit_with_editor(file_path):
+    subprocess.run(
+        ["git", "commit", "-e", "-F", file_path],
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+    )
+
+
+def get_git_diff():
+    result = subprocess.run(
+        ["git", "diff", "--cached"], stdout=subprocess.PIPE, text=True
+    )
+    return result.stdout
+
+
+def generate_commit_message(diff):
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {
+                "role": "user",
+                "content": f"Write a (zsh compatible) commit message for the following changes:\n\n{diff}",
+            },
+        ],
+    )
+
+    return response.choices[0].message.content
+
+
+def main():
+    diff = get_git_diff()
+    if diff:
+        commit_message = generate_commit_message(diff)
+        print("Commit message suggestion:")
+        print(commit_message)
+
+        # use_message = (
+        #     input("Do you want to use this commit message? (Yes/No): ").strip().lower()
+        # )
+        use_message = "yes"
+        if use_message == "yes":
+            # Create a temporary file with the commit message
+            temp_file_path = create_temp_commit_msg_file(commit_message)
+            # Run git commit and open the editor
+            commit_with_editor(temp_file_path)
+        else:
+            print("Commit message not used.")
+    else:
+        print("No changes to commit.")
+
+
+if __name__ == "__main__":
+    main()
