@@ -38,7 +38,7 @@ def generate_commit_message(diff):
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "system", "content": "You are an expert at reading python git diffs and know how to create conventional commit messages. You only talk about the added or deleted lines, not about surrounding context."},
             {
                 "role": "user",
                 "content": f"Write a (zsh compatible) commit message for the following changes:\n\n{diff}",
