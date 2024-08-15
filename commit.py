@@ -1,14 +1,16 @@
-#!/home/dino/work/gpt-website/.venv/bin/python3
+#!/usr/bin/env python3
 import subprocess
 import os
 import sys
 from openai import OpenAI
 from dotenv import load_dotenv
 
-load_dotenv(
-    "/home/dino/work/gpt-website/.env"
-)  # Load environment variables from .env file
+# follow symlink to get the parent directory of the script
+PARENT_DIR = os.path.dirname(os.path.realpath(__file__))
+env_path = os.path.join(PARENT_DIR, ".env")
+load_dotenv(env_path)  # Load environment variables from .env file
 
+GPT_MODEL = os.getenv("GPT_MODEL", "gpt-4o-mini")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
@@ -36,9 +38,12 @@ def get_git_diff():
 
 def generate_commit_message(diff):
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model=GPT_MODEL,
         messages=[
-            {"role": "system", "content": "You are an expert at reading python git diffs and know how to create conventional commit messages. You only talk about the added or deleted lines, not about surrounding context."},
+            {
+                "role": "system",
+                "content": "You are an expert at reading python git diffs and know how to create conventional commit messages. You only talk about the added or deleted lines, not about surrounding context.",
+            },
             {
                 "role": "user",
                 "content": f"Write a (zsh compatible) commit message for the following changes:\n\n{diff}",

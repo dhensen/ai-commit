@@ -7,5 +7,5 @@ A little script that reads your git diff --cached and makes up a commit message 
 Assuming your ~/bin is on your path:
 
 ```
-ln -s $PWD/commit ~/bin/commit
+./install.sh
 ```
