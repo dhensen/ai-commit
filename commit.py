@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 # follow symlink to get the parent directory of the script
 PARENT_DIR = os.path.dirname(os.path.realpath(__file__))
 env_path = os.path.join(PARENT_DIR, ".env")
+AI_COMMIT_ENV_FILE = os.getenv("AI_COMMIT_ENV_FILE", env_path)
 load_dotenv(env_path)  # Load environment variables from .env file
 
 GPT_MODEL = os.getenv("GPT_MODEL", "gpt-4o-mini")
@@ -56,6 +57,9 @@ def generate_commit_message(diff):
 
 def main():
     diff = get_git_diff()
+    if len(diff) > 16000:
+        print("Diff too large to process. I'm goint to cut it down to 12000 chars.")
+        diff = diff[:12000]
     if diff:
         commit_message = generate_commit_message(diff)
         print("Commit message suggestion:")
