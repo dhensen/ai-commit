@@ -47,7 +47,7 @@ def generate_commit_message(diff):
             },
             {
                 "role": "user",
-                "content": f"Write a (zsh compatible) commit message for the following changes:\n\n{diff}",
+                "content": f"Write a (zsh compatible) commit message for the following changes, return text without tripple backticks:\n\n{diff}",
             },
         ],
     )
