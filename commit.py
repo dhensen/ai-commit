@@ -6,13 +6,17 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 # follow symlink to get the parent directory of the script
-PARENT_DIR = os.path.dirname(os.path.realpath(__file__))
-env_path = os.path.join(PARENT_DIR, ".env")
-AI_COMMIT_ENV_FILE = os.getenv("AI_COMMIT_ENV_FILE", env_path)
-load_dotenv(env_path)  # Load environment variables from .env file
+AI_COMMIT_ENV_FILE = os.getenv("AI_COMMIT_ENV_FILE", None)
+env_path = AI_COMMIT_ENV_FILE
+if AI_COMMIT_ENV_FILE is None:
+    PARENT_DIR = os.path.dirname(os.path.realpath(__file__))
+    env_path = os.path.join(PARENT_DIR, ".env")
+
+load_dotenv(env_path, verbose=True)  # Load environment variables from .env file
 
 GPT_MODEL = os.getenv("GPT_MODEL", "gpt-4o-mini")
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=api_key)
 
 
 def create_temp_commit_msg_file(commit_msg, file_path="/tmp/commitmsg.txt"):
