@@ -8,11 +8,35 @@ from dotenv import load_dotenv
 # follow symlink to get the parent directory of the script
 PARENT_DIR = os.path.dirname(os.path.realpath(__file__))
 env_path = os.path.join(PARENT_DIR, ".env")
-AI_COMMIT_ENV_FILE = os.getenv("AI_COMMIT_ENV_FILE", env_path)
-load_dotenv(env_path)  # Load environment variables from .env file
+AI_COMMIT_ENV_FILE = os.getenv("AI_COMMIT_ENV_FILE", None)
 
+if os.access(env_path, os.R_OK):
+    load_dotenv(env_path, verbose=True)  # Load environment variables from .env file
+if AI_COMMIT_ENV_FILE:
+    # Check if the file exists and is readable
+    if not os.path.isfile(AI_COMMIT_ENV_FILE) or not os.access(
+        AI_COMMIT_ENV_FILE, os.R_OK
+    ):
+        print(
+            f"Error: The file {AI_COMMIT_ENV_FILE} does not exist or is not readable."
+        )
+        sys.exit(1)
+    load_dotenv(
+        AI_COMMIT_ENV_FILE, verbose=True
+    )  # Load environment variables from .env file
+
+try:
+    OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+except KeyError:
+    print(
+        "Please set the OPENAI_API_KEY environment variable or create a .env file with the key."
+    )
+    sys.exit(1)
 GPT_MODEL = os.getenv("GPT_MODEL", "gpt-4o-mini")
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# print("Using OpenAI API key:", OPENAI_API_KEY)
+# print("Using GPT model:", GPT_MODEL)
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 
 def create_temp_commit_msg_file(commit_msg, file_path="/tmp/commitmsg.txt"):
