@@ -81,9 +81,9 @@ def generate_commit_message(diff):
 
 def main():
     diff = get_git_diff()
-    if len(diff) > 16000:
-        print("Diff too large to process. I'm goint to cut it down to 12000 chars.")
-        diff = diff[:12000]
+    if len(diff) > 12000 * 4:
+        print("Diff too large to process. I'm goint to cut it down to 12000 * 4 chars.")
+        diff = diff[: 12000 * 4]
     if diff:
         commit_message = generate_commit_message(diff)
         print("Commit message suggestion:")
