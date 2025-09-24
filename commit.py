@@ -4,6 +4,7 @@ import os
 import sys
 from openai import OpenAI
 from dotenv import load_dotenv
+import argparse
 
 # follow symlink to get the parent directory of the script
 PARENT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -80,6 +81,29 @@ def generate_commit_message(diff):
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        prog="ai-commit",
+        description="Let AI write your commit message.",
+        epilog="Because you've got better things to do than writing commit messages.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Only create the commit message, but does not actually create a git commit",
+    )
+    parser.add_argument(
+        "--ask",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Ask to use commit message before actually creating the commit, only use on an interactive terminal",
+    )
+
+    # print(parser.parse_args(["--dry-run"]))
+    # print(parser.parse_args(["--no-dry-run"]))
+    # print(parser.parse_args(["--ask"]))
+    opts = parser.parse_args()
+
     diff = get_git_diff()
     if len(diff) > 12000 * 4:
         print("Diff too large to process. I'm goint to cut it down to 12000 * 4 chars.")
@@ -88,20 +112,27 @@ def main():
         commit_message = generate_commit_message(diff)
         print("Commit message suggestion:")
         print(commit_message)
+        if opts.dry_run:
+            sys.exit(0)
 
-        # use_message = (
-        #     input("Do you want to use this commit message? (Yes/No): ").strip().lower()
-        # )
         use_message = "yes"
-        if use_message == "yes":
+        if opts.ask:
+            use_message = (
+                input("Do you want to use this commit message? (Yes/No): ")
+                .strip()
+                .lower()
+            )
+        if use_message.startswith("y"):
             # Create a temporary file with the commit message
             temp_file_path = create_temp_commit_msg_file(commit_message)
             # Run git commit and open the editor
             commit_with_editor(temp_file_path)
         else:
             print("Commit message not used.")
+            sys.exit(0)
     else:
         print("No changes to commit.")
+        sys.exit(0)
 
 
 if __name__ == "__main__":

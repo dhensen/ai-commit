@@ -6,7 +6,7 @@ venv/bin/pip install -r requirements.txt
 cat <<EOF > ~/bin/commit
 #!/bin/bash
 source $PWD/venv/bin/activate
-python $PWD/commit.py
+python $PWD/commit.py "@$"
 EOF
 
 chmod +x ~/bin/commit
