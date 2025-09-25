@@ -46,9 +46,15 @@ def create_temp_commit_msg_file(commit_msg, file_path="/tmp/commitmsg.txt"):
     return file_path
 
 
-def commit_with_editor(file_path):
+def commit_with_editor(file_path, edit_commit: bool = True, verify: bool = True):
+    command = ["git", "commit"]
+    if edit_commit:
+        command.append("-e")
+    if not verify:
+        command.append("--no-verify")
+    command += ["-F", file_path]
     subprocess.run(
-        ["git", "commit", "-e", "-F", file_path],
+        command,
         stdin=sys.stdin,
         stdout=sys.stdout,
         stderr=sys.stderr,
@@ -95,8 +101,14 @@ def main():
     parser.add_argument(
         "--ask",
         action=argparse.BooleanOptionalAction,
-        default=False,
+        default=True,
         help="Ask to use commit message before actually creating the commit, only use on an interactive terminal",
+    )
+    parser.add_argument(
+        "--verify",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Whether or not to verify commit",
     )
 
     # print(parser.parse_args(["--dry-run"]))
@@ -115,21 +127,11 @@ def main():
         if opts.dry_run:
             sys.exit(0)
 
-        use_message = "yes"
-        if opts.ask:
-            use_message = (
-                input("Do you want to use this commit message? (Yes/No): ")
-                .strip()
-                .lower()
-            )
-        if use_message.startswith("y"):
-            # Create a temporary file with the commit message
-            temp_file_path = create_temp_commit_msg_file(commit_message)
-            # Run git commit and open the editor
-            commit_with_editor(temp_file_path)
-        else:
-            print("Commit message not used.")
-            sys.exit(0)
+        # Create a temporary file with the commit message
+        temp_file_path = create_temp_commit_msg_file(commit_message)
+        # Run git commit and open the editor
+        commit_with_editor(temp_file_path, edit_commit=opts.ask, verify=opts.verify)
+        sys.exit(0)
     else:
         print("No changes to commit.")
         sys.exit(0)
