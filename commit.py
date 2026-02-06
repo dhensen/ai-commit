@@ -2,7 +2,7 @@
 import subprocess
 import os
 import sys
-from openai import OpenAI
+from openai import OpenAI, APIConnectionError
 from dotenv import load_dotenv
 import argparse
 
@@ -121,7 +121,12 @@ def main():
         print("Diff too large to process. I'm goint to cut it down to 12000 * 4 chars.")
         diff = diff[: 12000 * 4]
     if diff:
-        commit_message = generate_commit_message(diff)
+        try:
+            commit_message = generate_commit_message(diff)
+        except APIConnectionError:
+            print("connection error, could not generate a commit message at this point")
+            sys.exit(1)
+
         print("Commit message suggestion:")
         print(commit_message)
         if opts.dry_run:
