@@ -11,6 +11,7 @@ dependencies = [
 
 [project.scripts]
 ai-commit = "ai_commit.commit:main"
+commit = "ai_commit.commit:main"
 
 [build-system]
 requires = ["hatchling"]
