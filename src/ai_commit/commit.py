@@ -5,6 +5,7 @@ import sys
 from openai import OpenAI, APIConnectionError
 from dotenv import load_dotenv
 import argparse
+import yaml
 
 # follow symlink to get the parent directory of the script
 PARENT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -35,9 +36,72 @@ except KeyError:
     sys.exit(1)
 GPT_MODEL = os.getenv("GPT_MODEL", "gpt-5-nano-2025-08-07")
 
-# print("Using OpenAI API key:", OPENAI_API_KEY)
-# print("Using GPT model:", GPT_MODEL)
 client = OpenAI(api_key=OPENAI_API_KEY)
+
+CONFIG_FILE = ".ai-commit.yml"
+
+DEFAULT_CONFIG_CONTENT = """\
+# AI Commit Configuration
+# Place this file at the root of your repository.
+# Instructions here will be included in the prompt when generating commit messages.
+
+instructions: |
+  Use conventional commit format (feat, fix, chore, docs, refactor, test, style, ci).
+  Keep the subject line under 72 characters.
+  # Add more custom instructions for this repository below:
+"""
+
+
+def load_repo_config():
+    """Load .ai-commit.yml from the current git repo root, if present."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            return None
+        repo_root = result.stdout.strip()
+        config_path = os.path.join(repo_root, CONFIG_FILE)
+        if not os.path.isfile(config_path):
+            return None
+        with open(config_path) as f:
+            return yaml.safe_load(f)
+    except Exception:
+        return None
+
+
+def init_config(force=False):
+    """Create .ai-commit.yml in the current git repo root."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            print("Error: not inside a git repository.")
+            sys.exit(1)
+        repo_root = result.stdout.strip()
+    except Exception as e:
+        print(f"Error determining repo root: {e}")
+        sys.exit(1)
+
+    config_path = os.path.join(repo_root, CONFIG_FILE)
+    existed = os.path.isfile(config_path)
+
+    if existed and not force:
+        print(f"{CONFIG_FILE} already exists. Use --force to overwrite.")
+        sys.exit(0)
+
+    with open(config_path, "w") as f:
+        f.write(DEFAULT_CONFIG_CONTENT)
+
+    action = "Overwrote" if existed else "Created"
+    print(f"{action} {config_path}")
 
 
 def create_temp_commit_msg_file(commit_msg, file_path="/tmp/commitmsg.txt"):
@@ -68,13 +132,22 @@ def get_git_diff():
     return result.stdout
 
 
-def generate_commit_message(diff):
+def generate_commit_message(diff, config=None):
+    system_prompt = (
+        "You are an expert at reading python git diffs and know how to create "
+        "conventional commit messages. You only talk about the added or deleted "
+        "lines, not about surrounding context."
+    )
+
+    if config and config.get("instructions"):
+        system_prompt += f"\n\nAdditional instructions:\n{config['instructions']}"
+
     response = client.chat.completions.create(
         model=GPT_MODEL,
         messages=[
             {
                 "role": "system",
-                "content": "You are an expert at reading python git diffs and know how to create conventional commit messages. You only talk about the added or deleted lines, not about surrounding context.",
+                "content": system_prompt,
             },
             {
                 "role": "user",
@@ -87,6 +160,22 @@ def generate_commit_message(diff):
 
 
 def main():
+    # Handle 'init' subcommand before the main argument parser
+    if len(sys.argv) > 1 and sys.argv[1] == "init":
+        init_parser = argparse.ArgumentParser(
+            prog="ai-commit init",
+            description=f"Initialize {CONFIG_FILE} configuration file in the current repo.",
+        )
+        init_parser.add_argument(
+            "--force",
+            "-f",
+            action="store_true",
+            help=f"Overwrite existing {CONFIG_FILE}",
+        )
+        init_opts = init_parser.parse_args(sys.argv[2:])
+        init_config(force=init_opts.force)
+        return
+
     parser = argparse.ArgumentParser(
         prog="ai-commit",
         description="Let AI write your commit message.",
@@ -110,11 +199,9 @@ def main():
         default=True,
         help="Whether or not to verify commit",
     )
-
-    # print(parser.parse_args(["--dry-run"]))
-    # print(parser.parse_args(["--no-dry-run"]))
-    # print(parser.parse_args(["--ask"]))
     opts = parser.parse_args()
+
+    config = load_repo_config()
 
     diff = get_git_diff()
 
@@ -126,7 +213,7 @@ def main():
         diff = diff[:max_length]
     if diff:
         try:
-            commit_message = generate_commit_message(diff)
+            commit_message = generate_commit_message(diff, config=config)
         except APIConnectionError:
             print("connection error, could not generate a commit message at this point")
             sys.exit(1)
