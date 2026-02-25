@@ -33,7 +33,7 @@ except KeyError:
         "Please set the OPENAI_API_KEY environment variable or create a .env file with the key."
     )
     sys.exit(1)
-GPT_MODEL = os.getenv("GPT_MODEL", "gpt-4o-mini")
+GPT_MODEL = os.getenv("GPT_MODEL", "gpt-5-nano-2025-08-07")
 
 # print("Using OpenAI API key:", OPENAI_API_KEY)
 # print("Using GPT model:", GPT_MODEL)
@@ -117,9 +117,13 @@ def main():
     opts = parser.parse_args()
 
     diff = get_git_diff()
-    if len(diff) > 12000 * 4:
+
+    max_length = (
+        400000 * 0.9
+    ) / 4  # gpt-5-nano-2025-08-07 has 400K context window, take 90% then divide by 4 to get rough max str length
+    if len(diff) > max_length:
         print("Diff too large to process. I'm goint to cut it down to 12000 * 4 chars.")
-        diff = diff[: 12000 * 4]
+        diff = diff[:max_length]
     if diff:
         try:
             commit_message = generate_commit_message(diff)
