@@ -132,6 +132,33 @@ def get_git_diff():
     return result.stdout
 
 
+def get_head_diff():
+    result = subprocess.run(
+        ["git", "diff", "HEAD~1", "HEAD"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
+    if result.returncode != 0:
+        # Might be the first commit
+        result = subprocess.run(
+            ["git", "show", "HEAD"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+    return result.stdout
+
+
+def amend_with_editor(file_path, edit_commit: bool = True, verify: bool = True):
+    command = ["git", "commit", "--amend"]
+    if edit_commit:
+        command.append("-e")
+    if not verify:
+        command.append("--no-verify")
+    command += ["-F", file_path]
+    subprocess.run(
+        command,
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+    )
+
+
 def generate_commit_message(diff, config=None):
     system_prompt = (
         "You are an expert at reading python git diffs and know how to create "
@@ -199,9 +226,47 @@ def main():
         default=True,
         help="Whether or not to verify commit",
     )
+    parser.add_argument(
+        "--rewrite-head",
+        action="store_true",
+        default=False,
+        help="Rewrite the HEAD commit message using AI (amends the last commit)",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        default=False,
+        help="Print debug information, including instructions from .ai-commit.yml",
+    )
     opts = parser.parse_args()
 
     config = load_repo_config()
+
+    if opts.debug and config and config.get("instructions"):
+        print(f"[debug] Loaded instructions from {CONFIG_FILE}:")
+        print(config["instructions"])
+
+    if opts.rewrite_head:
+        diff = get_head_diff()
+        if not diff:
+            print("No diff found for HEAD commit.")
+            sys.exit(1)
+        max_length = (400000 * 0.9) / 4
+        if len(diff) > max_length:
+            print("Diff too large to process. Truncating.")
+            diff = diff[:max_length]
+        try:
+            commit_message = generate_commit_message(diff, config=config)
+        except APIConnectionError:
+            print("connection error, could not generate a commit message at this point")
+            sys.exit(1)
+        print("Proposed commit message:")
+        print(commit_message)
+        if opts.dry_run:
+            sys.exit(0)
+        temp_file_path = create_temp_commit_msg_file(commit_message)
+        amend_with_editor(temp_file_path, edit_commit=opts.ask, verify=opts.verify)
+        sys.exit(0)
 
     diff = get_git_diff()
 
