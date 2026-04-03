@@ -134,12 +134,18 @@ def get_git_diff():
 
 def get_head_diff():
     result = subprocess.run(
-        ["git", "diff", "HEAD~1", "HEAD"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        ["git", "diff", "HEAD~1", "HEAD"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
     )
     if result.returncode != 0:
         # Might be the first commit
         result = subprocess.run(
-            ["git", "show", "HEAD"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            ["git", "show", "HEAD"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
     return result.stdout
 
@@ -251,7 +257,7 @@ def main():
         if not diff:
             print("No diff found for HEAD commit.")
             sys.exit(1)
-        max_length = (400000 * 0.9) / 4
+        max_length = int((400000 * 0.9) / 4)
         if len(diff) > max_length:
             print("Diff too large to process. Truncating.")
             diff = diff[:max_length]
@@ -270,9 +276,8 @@ def main():
 
     diff = get_git_diff()
 
-    max_length = (
-        400000 * 0.9
-    ) / 4  # gpt-5-nano-2025-08-07 has 400K context window, take 90% then divide by 4 to get rough max str length
+    # gpt-5-nano-2025-08-07 has 400K context window, take 90% then divide by 4 to get rough max str length
+    max_length = int((400000 * 0.9) / 4)
     if len(diff) > max_length:
         print("Diff too large to process. I'm goint to cut it down to 12000 * 4 chars.")
         diff = diff[:max_length]
